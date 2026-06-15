@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Tareas Auditoría · Vota</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<style>
+  :root {
+    --blue-50:#E6F1FB;--blue-100:#B5D4F4;--blue-200:#85B7EB;--blue-600:#185FA5;--blue-800:#0C447C;
+    --purple-50:#EEEDFE;--purple-200:#AFA9EC;--purple-600:#534AB7;--purple-800:#3C3489;
+    --amber-50:#FAEEDA;--amber-600:#854F0B;
+    --green-50:#EAF3DE;--green-600:#3B6D11;--green-800:#27500A;
+    --bg:#F7F7F5;--surface:#FFF;--border:rgba(0,0,0,0.09);--text:#1a1a18;--muted:#6b6b66;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:6rem;}
+
+  .top{
+    position:sticky;top:0;z-index:50;
+    background:var(--surface);
+    border-bottom:1px solid var(--border);
+    padding:0.875rem 1rem 0.75rem;
+    box-shadow:0 2px 12px rgba(0,0,0,0.05);
+  }
+  .top-title{
+    font-family:'DM Serif Display',serif;
+    font-size:1.1rem;font-weight:400;
+    letter-spacing:-0.01em;
+    text-align:center;
+  }
+  .top-title em{font-style:italic;color:var(--blue-600);}
+  .top-sub{font-size:0.72rem;color:var(--muted);text-align:center;margin-top:2px;}
+
+  .counter-row{
+    display:flex;align-items:center;justify-content:center;gap:0.5rem;
+    margin-top:0.6rem;
+  }
+  .counter-badge{
+    display:flex;align-items:center;gap:6px;
+    background:var(--text);color:#fff;
+    font-size:0.78rem;font-weight:500;
+    padding:4px 12px;border-radius:99px;
+  }
+  .counter-dots{display:flex;gap:4px;}
+  .dot-pip{
+    width:8px;height:8px;border-radius:50%;
+    background:rgba(255,255,255,0.3);
+    transition:background 0.2s;
+  }
+  .dot-pip.filled{background:#fff;}
+
+  .done-screen{
+    display:none;flex-direction:column;align-items:center;justify-content:center;
+    padding:3rem 1.5rem;text-align:center;
+    min-height:60vh;
+  }
+  .done-screen.show{display:flex;}
+  .done-icon{font-size:3rem;margin-bottom:1rem;}
+  .done-title{font-family:'DM Serif Display',serif;font-size:1.4rem;margin-bottom:0.5rem;}
+  .done-sub{font-size:0.85rem;color:var(--muted);line-height:1.6;}
+
+  .config-bar{
+    background:var(--amber-50);
+    border-bottom:1px solid #FAC775;
+    padding:0.75rem 1rem;
+    font-size:0.78rem;color:var(--amber-600);
+  }
+  .config-bar a{color:var(--amber-600);}
+  .config-input{
+    width:100%;margin-top:0.4rem;
+    padding:0.5rem 0.75rem;
+    border:1px solid #FAC775;border-radius:8px;
+    font-size:0.78rem;font-family:inherit;
+    background:#fff;color:var(--text);
+    outline:none;
+  }
+  .config-btn{
+    margin-top:0.4rem;
+    padding:0.4rem 0.875rem;
+    background:var(--amber-600);color:#fff;
+    border:none;border-radius:6px;
+    font-family:inherit;font-size:0.78rem;cursor:pointer;
+  }
+
+  .tasks-list{padding:0.875rem 0.875rem 0;}
+  .task-card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:0.875rem 1rem;
+    margin-bottom:0.6rem;
+    display:flex;align-items:center;gap:0.75rem;
+    transition:transform 0.12s,box-shadow 0.15s,border-color 0.15s,background 0.15s;
+    cursor:pointer;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+  .task-card:active{transform:scale(0.98);}
+  .task-card.selected{
+    border-color:var(--blue-200);
+    background:var(--blue-50);
+    box-shadow:0 2px 12px rgba(24,95,165,0.12);
+  }
+  .task-card.selected .task-name{color:var(--blue-800);}
+  .task-card.disabled{
+    opacity:0.45;cursor:not-allowed;
+  }
+  .task-check{
+    width:24px;height:24px;border-radius:50%;flex-shrink:0;
+    border:2px solid var(--border);
+    display:flex;align-items:center;justify-content:center;
+    transition:background 0.15s,border-color 0.15s;
+    font-size:0.75rem;color:transparent;
+  }
+  .task-card.selected .task-check{
+    background:var(--blue-600);border-color:var(--blue-600);color:#fff;
+  }
+  .task-info{flex:1;min-width:0;}
+  .task-name{font-size:0.875rem;font-weight:500;line-height:1.35;color:var(--text);}
+
+  .toast{
+    position:fixed;bottom:5rem;left:50%;
+    transform:translateX(-50%) translateY(12px);
+    background:var(--text);color:#fff;
+    padding:0.5rem 1rem;border-radius:8px;
+    font-size:0.78rem;opacity:0;pointer-events:none;
+    transition:opacity 0.25s,transform 0.25s;z-index:200;
+    white-space:nowrap;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  .bottom-bar{
+    position:fixed;bottom:0;left:0;right:0;
+    background:var(--surface);
+    border-top:1px solid var(--border);
+    padding:0.625rem 1rem;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .confirm-btn{
+    width:100%;max-width:400px;
+    padding:0.75rem;
+    background:var(--blue-600);color:#fff;
+    border:none;border-radius:10px;
+    font-family:inherit;font-size:0.9rem;font-weight:600;
+    cursor:pointer;transition:opacity 0.15s,transform 0.1s;
+    display:flex;align-items:center;justify-content:center;gap:0.5rem;
+  }
+  .confirm-btn:disabled{background:var(--muted);cursor:not-allowed;}
+  .confirm-btn:not(:disabled):active{transform:scale(0.98);}
+</style>
+</head>
+<body>
+
+<div class="config-bar" id="cfg-bar">
+  <strong>⚙️ Conecta Firebase para participar en tiempo real</strong><br>
+  Pega la URL de tu proyecto:
+  <input class="config-input" id="fb-url" placeholder="https://...firebasedatabase.app" />
+  <button class="config-btn" onclick="saveUrl()">Conectar</button>
+</div>
+
+<div class="top">
+  <div class="top-title">¿Qué actividades <em>realizas habitualmente?</em></div>
+  <div class="top-sub">Elige exactamente 5 de las 20 actividades siguientes</div>
+  <div class="counter-row">
+    <div class="counter-badge">
+      <span id="count-txt">0 / 5 seleccionadas</span>
+      <div class="counter-dots" id="dots-row">
+        <div class="dot-pip" id="p0"></div>
+        <div class="dot-pip" id="p1"></div>
+        <div class="dot-pip" id="p2"></div>
+        <div class="dot-pip" id="p3"></div>
+        <div class="dot-pip" id="p4"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tasks-list" id="tasks-list"></div>
+
+<div class="done-screen" id="done-screen">
+  <div class="done-icon">✅</div>
+  <div class="done-title">¡Gracias por participar!</div>
+  <div class="done-sub">Tus respuestas ya se han registrado.<br>Puedes ver los resultados en directo en la pantalla.</div>
+</div>
+
+<div class="bottom-bar">
+  <button class="confirm-btn" id="confirm-btn" onclick="submitVotes()" disabled>
+    Confirmar selección (0/5)
+  </button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const MAX_VOTES = 5;
+
+// Las 20 actividades del fichero Actividades.docx
+// (el tipo mec/jud se guarda internamente para el dashboard, pero NO se muestra al usuario)
+const ALL_TASKS = [
+  {id:'m1', name:'Confección de checklist', type:'mec'},
+  {id:'m2', name:'Recepción y archivo de la documentación recibida', type:'mec'},
+  {id:'m3', name:'Trabajos de circularización', type:'mec'},
+  {id:'m4', name:'Conciliación de saldos contables', type:'mec'},
+  {id:'m5', name:'Comprobación de la coherencia de balances con las sumarias', type:'mec'},
+  {id:'m6', name:'Muestreos de facturas con registros', type:'mec'},
+  {id:'m7', name:'Limpieza del libro diario', type:'mec'},
+  {id:'m8', name:'Envío de recordatorios y seguimiento de documentación', type:'mec'},
+  {id:'m9', name:'Generación de informes, propuestas de servicios y cartas', type:'mec'},
+  {id:'m10', name:'Cálculo de ratios financieros básicos', type:'mec'},
+  {id:'j1', name:'Evaluación del riesgo y materialidad de la auditoría', type:'jud'},
+  {id:'j2', name:'Interpretación de normas contables (PGC, NOFCAF, NIIF)', type:'jud'},
+  {id:'j3', name:'Coaching y liderazgo con el equipo', type:'jud'},
+  {id:'j4', name:'Cuestionar estimaciones de la dirección', type:'jud'},
+  {id:'j5', name:'Evaluar adecuación de provisiones', type:'jud'},
+  {id:'j6', name:'Analizar continuidad de la empresa', type:'jud'},
+  {id:'j7', name:'Revisar hipótesis de modelos de valoración', type:'jud'},
+  {id:'j8', name:'Planificación estratégica del encargo', type:'jud'},
+  {id:'j9', name:'Supervisión y revisión del trabajo junior', type:'jud'},
+  {id:'j10', name:'Gestión de la relación con el cliente', type:'jud'},
+];
+
+// Fisher-Yates: orden aleatorio para cada usuario, mezclando mec y jud
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+const TASKS = shuffle(ALL_TASKS);
+let selected = new Set();
+let submitted = false;
+let db = null, dbRef = null;
+
+// URL de Firebase grabada: los móviles se conectan solos, sin configurar nada
+const FIREBASE_URL = 'https://f-audit-2026-default-rtdb.europe-west1.firebasedatabase.app';
+
+document.getElementById('cfg-bar').style.display = 'none';
+initFirebase(FIREBASE_URL);
+
+function saveUrl() {
+  const url = document.getElementById('fb-url').value.trim();
+  if (!url.includes('firebasedatabase.app')) { toast('URL no válida'); return; }
+  document.getElementById('cfg-bar').style.display = 'none';
+  initFirebase(url);
+  toast('¡Conectado! ✓');
+}
+
+function initFirebase(url) {
+  try {
+    if (!firebase.apps.length) firebase.initializeApp({ databaseURL: url });
+    db = firebase.database();
+    dbRef = db.ref('auditorVotes');
+  } catch(e) { toast('Firebase: ' + e.message); }
+}
+
+function renderTasks() {
+  const list = document.getElementById('tasks-list');
+  list.innerHTML = '';
+  TASKS.forEach(t => {
+    const isSel = selected.has(t.id);
+    const isDisabled = !isSel && selected.size >= MAX_VOTES;
+    const card = document.createElement('div');
+    card.className = 'task-card' + (isSel?' selected':'') + (isDisabled?' disabled':'');
+    card.dataset.id = t.id;
+    card.onclick = () => toggleTask(t.id, isDisabled);
+    card.innerHTML = `
+      <div class="task-check">${isSel?'✓':''}</div>
+      <div class="task-info">
+        <div class="task-name">${t.name}</div>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+function toggleTask(id, disabled) {
+  if (submitted) return;
+  if (disabled && !selected.has(id)) {
+    toast('Ya has seleccionado 5 actividades');
+    return;
+  }
+  if (selected.has(id)) selected.delete(id);
+  else selected.add(id);
+  updateCounter();
+  renderTasks();
+}
+
+function updateCounter() {
+  const n = selected.size;
+  document.getElementById('count-txt').textContent = `${n} / ${MAX_VOTES} seleccionadas`;
+  for (let i = 0; i < MAX_VOTES; i++) {
+    document.getElementById('p'+i).className = 'dot-pip' + (i < n ? ' filled' : '');
+  }
+  const btn = document.getElementById('confirm-btn');
+  btn.disabled = n !== MAX_VOTES;
+  btn.textContent = n === MAX_VOTES
+    ? `✓ Confirmar selección (${n}/${MAX_VOTES})`
+    : `Confirmar selección (${n}/${MAX_VOTES})`;
+}
+
+function submitVotes() {
+  if (selected.size !== MAX_VOTES || submitted) return;
+  submitted = true;
+  const voterId = getVoterId();
+
+  if (db && dbRef) {
+    const updates = {};
+    selected.forEach(taskId => {
+      updates[`tasks/${taskId}/votes`] = firebase.database.ServerValue.increment(1);
+      updates[`tasks/${taskId}/voters/${voterId}`] = true;
+    });
+    updates[`voterList/${voterId}`] = { ts: Date.now(), votes: [...selected] };
+    dbRef.update(updates)
+      .then(() => showDone())
+      .catch(e => { toast('Error: ' + e.message); submitted = false; });
+  } else {
+    showDone();
+  }
+}
+
+function showDone() {
+  document.getElementById('tasks-list').style.display = 'none';
+  document.querySelector('.bottom-bar').style.display = 'none';
+  document.getElementById('done-screen').classList.add('show');
+}
+
+function getVoterId() {
+  let id = localStorage.getItem('voter_id');
+  if (!id) { id = 'v_' + Math.random().toString(36).slice(2,10); localStorage.setItem('voter_id', id); }
+  return id;
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+renderTasks();
+updateCounter();
+</script>
+</body>
+</html>
